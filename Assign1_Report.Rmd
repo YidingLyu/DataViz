@@ -1,0 +1,159 @@
+---
+Fatitle: Assign 1
+author: "Yiding Lyu yl3248"
+date: "January 28, 2015"
+output: pdf_document
+---
+## R Basic Homework (Homework 1)
+
+*By Yiding Lyu, yl3248, Jan 30*
+
+###Part 1 of the problem
+In Part 1 of the problem, we should Produce a new data.frame with the following properties: 
+
+* From the NMIS Health Facilities Inventory, select all facilities located in the Southern zones of Nigeria.
+
+* Incorporate LGA metadata into this new dataframe.
+
+To solve this problem, first we should set the working directory and read the data:
+
+```{r}
+setwd("/Users/Lichking/Desktop/Columbia/Courses/DataVisualization/Assignments/Assignment1")
+LGA_Data=read.csv("lgas.csv")
+Facility_Data=read.csv("Health_Mopup_and_Baseline_NMIS_Facility.csv")
+```
+
+Then, we can take a look at the data:
+
+```{r}
+str(LGA_Data)
+str(Facility_Data)
+```
+
+We can see that there are one same column in the two data.frame, which is called "unique\_lga", which seems to be the name of the city. If we want to get all the facility in the southern part, we can first get the cities in the southern part from the `LGA_Data` and then get the facility in southern part according to the city list we get from `Facility_Data`: 
+
+```{r}
+LGA_South=subset(LGA_Data,zone %in% c("South-South","Southeast","Southwest"))
+SouthCity=LGA_South$unique_lga
+Facility_South=subset(Facility_Data,unique_lga %in% SouthCity)
+```
+
+Now that we have the data.frame `Facility_South`, we can construct the new data.frame by the `merge` operation:
+
+```{r}
+Merge_Data=merge(LGA_South,Facility_South,by="unique_lga")
+```
+
+###Part 2 of the Problem
+In this part, we should calculate the total number of full time nurses and doctors for all health facilities, by state. Compute per capita and per area values, as well.
+
+* Sort the resulting dataset by state population, in descending order. 
+
+* Show the results
+
+####If we do this part on all the states
+First we can extract all the state from `LGA_Data`: 
+
+```{r}
+States=levels(LGA_Data$state)
+States
+```
+
+Because we should do the work for every state, so it is better to do it in a loop. Before we do the loop, we may first construct the data.frame for the result:
+
+```{r}
+FacilityStatistics=data.frame(state=States,num_of_fulltime_nurses_and_doctors=rep(NA,length(States)),population=rep(NA,length(States)),area=rep(NA,length(States)),facility_per_capita=rep(NA,length(States)),facility_per_area=rep(NA,length(States)))
+```
+
+Which contains 6 columns:
+```{r, echo=FALSE}
+str(FacilityStatistics)
+```
+
+Then we do the loop. In this part, we consider "all fulltime nurses and doctors" include fulltime nurses, fulltime nurse midwives and fulltime doctors: 
+
+```{r}
+for (n in c(1:length(States))){
+  StateData=LGA_Data[LGA_Data$state==States[n],]
+  Population=sum(StateData$pop_2006)
+  Area=sum(StateData$area_sq_km)
+  FacilityStatistics[n,3]=Population
+  FacilityStatistics[n,4]=Area
+  StateCity=StateData$unique_lga
+  StateFacility=subset(Facility_Data,unique_lga %in% StateCity)
+  nurse1=na.omit(StateFacility$num_nurses_fulltime)
+  nurse2=na.omit(StateFacility$num_nursemidwives_fulltime)
+  doctor=na.omit(StateFacility$num_doctors_fulltime)
+  FulltimeTotal=sum(nurse1)+sum(nurse2)+sum(doctor)
+  FacilityStatistics[n,5]=FulltimeTotal/Population
+  FacilityStatistics[n,6]=FulltimeTotal/Area
+  FacilityStatistics[n,2]=FulltimeTotal
+}
+```
+
+Now we have an unsorted result:
+
+```{r}
+head(FacilityStatistics)
+```
+
+Then we may sort it. Here we use the `arrange()` function to sort it, which need to load plyr library:
+
+```{r}
+library(plyr)
+FacilityStatistics_Sorted=arrange(FacilityStatistics,desc(population))
+FacilityStatistics_Sorted
+```
+
+####If we do this part on the southern states
+It is basically the same, we just need to write
+
+```{r}
+SouthStates=LGA_South$state
+SouthStates=factor(SouthStates)
+SouthStates=levels(SouthStates)
+```
+
+Instead of 
+
+```{r}
+States=levels(LGA_Data$state)
+```
+
+Now we have the list of all the southern states:
+
+```{r, echo=FALSE}
+SouthStates
+```
+
+The other is almost the same:
+
+```{r}
+States=SouthStates
+FacilityStatistics=data.frame(state=States,num_of_fulltime_nurses_and_doctors=rep(-1,length(States)),population=rep(-1,length(States)),area=rep(-1,length(States)),facility_per_capita=rep(-1,length(States)),facility_per_area=rep(-1,length(States)))
+for (n in c(1:length(States))){
+  StateData=LGA_Data[LGA_Data$state==States[n],]
+  Population=sum(StateData$pop_2006)
+  Area=sum(StateData$area_sq_km)
+  FacilityStatistics[n,3]=Population
+  FacilityStatistics[n,4]=Area
+  StateCity=StateData$unique_lga
+  StateFacility=subset(Facility_Data,unique_lga %in% StateCity)
+  nurse1=na.omit(StateFacility$num_nurses_fulltime)
+  nurse2=na.omit(StateFacility$num_nursemidwives_fulltime)
+  doctor=na.omit(StateFacility$num_doctors_fulltime)
+  FulltimeTotal=sum(nurse1)+sum(nurse2)+sum(doctor)
+  FacilityStatistics[n,5]=FulltimeTotal/Population
+  FacilityStatistics[n,6]=FulltimeTotal/Area
+  FacilityStatistics[n,2]=FulltimeTotal
+}
+library(plyr)
+FacilityStatistics_Sorted=arrange(FacilityStatistics,desc(population))
+```
+
+The result is as follows:
+
+```{r, echo=FALSE}
+FacilityStatistics_Sorted
+```
+
